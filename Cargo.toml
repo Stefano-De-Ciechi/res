@@ -1,0 +1,11 @@
+[package]
+name = "res"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dirs = "5.0.1"
+eframe = "0.28.1"
+egui_extras = "0.28.1"
+regex = "1.10.6"
+walkdir = "2.5.0"
