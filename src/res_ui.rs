@@ -1,8 +1,8 @@
 // TODO try to use the crossterm crate to implement a TUI
+use crate::res_data::{filter_entries_keys, generate_entries_map, FileEntry};
 use eframe::egui::{self};
 use egui_extras::{Column, TableBuilder};
 use std::{collections::HashMap, path::PathBuf};
-use crate::res_data::{filter_entries_keys, generate_entries_map, FileEntry};
 
 struct MyApp {
     path: PathBuf,
@@ -14,7 +14,6 @@ struct MyApp {
 
 impl MyApp {
     fn new(path: PathBuf) -> Self {
-
         let entries = generate_entries_map(path.clone());
         let mut keys: Vec<String> = entries.keys()
             .map(|e| e.to_string())
@@ -26,7 +25,7 @@ impl MyApp {
 
         Self {
             path,
-            entries_map: entries, 
+            entries_map: entries,
             search_string: "".to_string(),
             keys,
             filtered_keys,
@@ -34,20 +33,7 @@ impl MyApp {
     }
 }
 
-impl Default for MyApp {
-    fn default() -> Self {
-        Self {
-            path: dirs::home_dir().unwrap(), 
-            entries_map: HashMap::new(),
-            search_string: "".to_string(),
-            keys: Vec::new(),
-            filtered_keys: Vec::new(),
-        }
-    }
-}
-
 impl eframe::App for MyApp {
-
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading(format!("{}", self.path.to_str().unwrap()));
@@ -59,17 +45,18 @@ impl eframe::App for MyApp {
             if _search.changed() {
                 self.filtered_keys = filter_entries_keys(&self.keys, &self.search_string);
             }
-            
+
             let keys = match &self.search_string.is_empty() {
                 true => &self.keys,
                 false => &self.filtered_keys,
-            };  
+            };
 
             TableBuilder::new(ui)
                 .striped(true)
-                .column(Column::auto()).resizable(true)
+                .resizable(true)
                 .column(Column::auto())
                 .column(Column::auto())
+                .column(Column::remainder())
                 .header(row_height, |mut header| {
                     header.col(|ui| {
                         ui.strong("File Name");
@@ -81,28 +68,28 @@ impl eframe::App for MyApp {
                         ui.strong("Path");
                     });
                 })
-                .body(|mut body| {
-                    
-                    //keys.sort();
-                    for key in keys {
-                        let entries = &self.entries_map[key];
+                .body(|body| {
+                    let all_entries: Vec<&FileEntry> = keys
+                        .iter()
+                        .flat_map(|key| self.entries_map[key].iter())
+                        .collect();
 
-                        for entry in entries {
-                            body.row(row_height, |mut row| {
-                                row.col(|ui| {
-                                    ui.label(&entry.name);
-                                });
-                                row.col(|ui| {
-                                    ui.label(&entry.extension);
-                                });
-                                row.col(|ui| {
-                                    ui.label(&entry.path);
-                                });
-                            });
+                    body.rows(row_height, all_entries.len(), |mut row| {
+                        let index = row.index();
+                        let entry = all_entries[index];
 
-                        }
-                    }
-                    
+                        row.col(|ui| {
+                            ui.label(&entry.name);
+                        });
+
+                        row.col(|ui| {
+                            ui.label(&entry.extension);
+                        });
+
+                        row.col(|ui| {
+                            ui.label(&entry.path);
+                        });
+                    });
                 });
         });
     }
@@ -114,11 +101,9 @@ pub fn res_ui_init() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
-    eframe::run_native("Rust Everywhere Search",
+    eframe::run_native(
+        "Rust Everywhere Search",
         options,
-        Box::new(|_cc| {
-        Ok(Box::new(
-            MyApp::new(dirs::home_dir().unwrap())
-        ))
-    }))  
+        Box::new(|_cc| Ok(Box::new(MyApp::new(dirs::home_dir().unwrap())))),
+    )
 }

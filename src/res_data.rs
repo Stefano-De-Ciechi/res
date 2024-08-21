@@ -67,7 +67,6 @@ pub fn generate_entries_map(path: PathBuf) -> HashMap<String, Vec<FileEntry>> {
     }
 
     map
-
 }
 
 pub fn filter_entries_keys(keys: &Vec<String>, pattern: &str) -> Vec<String> {
