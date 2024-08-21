@@ -46,10 +46,12 @@ impl eframe::App for MyApp {
                 self.filtered_keys = filter_entries_keys(&self.keys, &self.search_string);
             }
 
-            let keys = match &self.search_string.is_empty() {
-                true => &self.keys,
-                false => &self.filtered_keys,
+            let entries: Vec<&FileEntry> = match self.search_string.is_empty() {
+                true => self.keys.iter().flat_map(|key| self.entries_map[key].iter()).collect(),
+                false => self.filtered_keys.iter().flat_map(|key| self.entries_map[key].iter()).collect(),
             };
+
+            ui.label(format!("entries: {}", entries.len()));
 
             TableBuilder::new(ui)
                 .striped(true)
@@ -69,14 +71,9 @@ impl eframe::App for MyApp {
                     });
                 })
                 .body(|body| {
-                    let all_entries: Vec<&FileEntry> = keys
-                        .iter()
-                        .flat_map(|key| self.entries_map[key].iter())
-                        .collect();
-
-                    body.rows(row_height, all_entries.len(), |mut row| {
+                    body.rows(row_height, entries.len(), |mut row| {
                         let index = row.index();
-                        let entry = all_entries[index];
+                        let entry = entries[index];
 
                         row.col(|ui| {
                             ui.label(&entry.name);
