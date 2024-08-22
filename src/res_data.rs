@@ -15,11 +15,11 @@ impl FileEntry {
     }
 }
 
-pub fn generate_entries_map(path: PathBuf) -> HashMap<String, Vec<FileEntry>> {
+pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> HashMap<String, Vec<FileEntry>> {
     let mut map: HashMap<String, Vec<FileEntry>> = HashMap::new();
 
     let walker = WalkDir::new(path)
-        .max_depth(3)  
+        .max_depth(max_depth)  
         .into_iter();
 
     for entry in walker.filter_map(|e| e.ok()) {
