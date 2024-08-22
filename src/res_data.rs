@@ -69,21 +69,6 @@ pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> HashMap<String, 
     map
 }
 
-// TODO eventually expand to fuzzy filter by extension or relative path
-pub fn filter_entries_keys(keys: &Vec<String>, pattern: &str) -> Vec<String> {
-    let search_re = match RegexBuilder::new(&format!(r"{}", pattern))
-        .case_insensitive(true)
-        .build() {
-            Ok(re) => re,
-            Err(_) => Regex::new("").unwrap(),
-    };
-
-    keys.iter()
-        .filter(|e| search_re.is_match(e))
-        .map(|s| s.to_string())
-        .collect()
-}
-
 pub struct ResApp {
     pub path: PathBuf,
     pub entries_map: HashMap<String, Vec<FileEntry>>,
@@ -126,9 +111,29 @@ impl ResApp {
         // if the search string isn't empty use it to filter the newly-generated entries
         match self.search_string.is_empty() {
             true => self.filtered_keys = Vec::new(),
-            false => self.filtered_keys = filter_entries_keys(&self.keys, &self.search_string),
+            //true => self.filtered_keys = self.keys.clone(),
+            false => self.filter_by_name(&self.search_string.clone()),
         }
 
     }
+
+    // TODO eventually expand to fuzzy filter by extension or relative path
+    // actually, it is not possible to do it efficiently enought right now; an alternative would be to have
+    // a separate hashmap where the keys are the file extensions (it would be necessary to populate
+    // that map too)
+    pub fn filter_by_name(&mut self, pattern: &str) {
+        let search_re = match RegexBuilder::new(&format!(r"{}", pattern))
+            .case_insensitive(true)
+            .build() {
+                Ok(re) => re,
+                Err(_) => Regex::new("").unwrap(),
+        };
+
+        self.filtered_keys = self.keys.iter()
+            .filter(|e| search_re.is_match(e))
+            .map(|s| s.to_string())
+            .collect()
+    }
+
 }
 

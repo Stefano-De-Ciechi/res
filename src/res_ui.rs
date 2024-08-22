@@ -1,5 +1,5 @@
 // TODO try to use the crossterm crate to implement a TUI
-use crate::res_data::{filter_entries_keys, FileEntry, ResApp};
+use crate::res_data::{FileEntry, ResApp};
 use eframe::egui::{self};
 use egui_extras::{Column, TableBuilder};
 use egui_file_dialog::FileDialog;
@@ -68,7 +68,8 @@ impl eframe::App for MyApp {
                 let _search = ui.add(egui::TextEdit::singleline(&mut self.res.search_string));
 
                 if _search.changed() {
-                    self.res.filtered_keys = filter_entries_keys(&self.res.keys, &self.res.search_string);
+                    //self.res.filtered_keys = filter_entries_keys(&self.res.keys, &self.res.search_string);
+                    self.res.filter_by_name(&self.res.search_string.clone());
                     debug_println!("filtering on regex search: {}", self.res.search_string);
                 }
 
