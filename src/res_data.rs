@@ -69,6 +69,7 @@ pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> HashMap<String, 
     map
 }
 
+// TODO eventually expand to fuzzy filter by extension or relative path
 pub fn filter_entries_keys(keys: &Vec<String>, pattern: &str) -> Vec<String> {
     let search_re = match RegexBuilder::new(&format!(r"{}", pattern))
         .case_insensitive(true)
