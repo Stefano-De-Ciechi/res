@@ -1,58 +1,9 @@
 // TODO try to use the crossterm crate to implement a TUI
-use crate::res_data::{filter_entries_keys, generate_entries_map, FileEntry};
+use crate::res_data::{filter_entries_keys, FileEntry, ResApp};
 use eframe::egui::{self};
 use egui_extras::{Column, TableBuilder};
-use std::{collections::HashMap, path::PathBuf};
 
-struct MyApp {
-    path: PathBuf,
-    entries_map: HashMap<String, Vec<FileEntry>>,
-    search_string: String,
-    keys: Vec<String>,
-    filtered_keys: Vec<String>,
-    max_depth: usize,
-}
-
-impl MyApp {
-    fn new(path: PathBuf, max_depth: usize) -> Self {
-        let entries = generate_entries_map(path.clone(), max_depth);
-        let mut keys: Vec<String> = entries.keys()
-            .map(|e| e.to_string())
-            .collect();
-
-        keys.sort();
-
-        let filtered_keys: Vec<String> = Vec::new();
-
-        Self {
-            path,
-            entries_map: entries,
-            search_string: "".to_string(),
-            keys,
-            filtered_keys,
-            max_depth,
-        }
-    }
-
-    // regenerate entries, keys and filtered keys when either the path or the max_depth are modified
-    fn update(&mut self, path: PathBuf, max_depth: usize) {
-        self.entries_map = generate_entries_map(path, max_depth);
-        self.keys = self.entries_map.keys()
-            .map(|e| e.to_string())
-            .collect();
-
-        self.keys.sort();
-
-        // if the search string isn't empty use it to filter the newly-generated entries
-        match self.search_string.is_empty() {
-            true => self.filtered_keys = Vec::new(),
-            false => self.filtered_keys = filter_entries_keys(&self.keys, &self.search_string),
-        }
-
-    }
-}
-
-impl eframe::App for MyApp {
+impl eframe::App for ResApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let text_style = egui::TextStyle::Body;
@@ -147,6 +98,6 @@ pub fn res_ui_init() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Rust Everywhere Search",
         options,
-        Box::new(|_cc| Ok(Box::new(MyApp::new(dirs::home_dir().unwrap(), 3)))),
+        Box::new(|_cc| Ok(Box::new(ResApp::new(dirs::home_dir().unwrap(), 3)))),
     )
 }

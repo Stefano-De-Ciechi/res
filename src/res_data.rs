@@ -83,3 +83,51 @@ pub fn filter_entries_keys(keys: &Vec<String>, pattern: &str) -> Vec<String> {
         .collect()
 }
 
+pub struct ResApp {
+    pub path: PathBuf,
+    pub entries_map: HashMap<String, Vec<FileEntry>>,
+    pub search_string: String,
+    pub keys: Vec<String>,
+    pub filtered_keys: Vec<String>,
+    pub max_depth: usize,
+}
+
+impl ResApp {
+    pub fn new(path: PathBuf, max_depth: usize) -> Self {
+        let entries = generate_entries_map(path.clone(), max_depth);
+        let mut keys: Vec<String> = entries.keys()
+            .map(|e| e.to_string())
+            .collect();
+
+        keys.sort();
+
+        let filtered_keys: Vec<String> = Vec::new();
+
+        Self {
+            path,
+            entries_map: entries,
+            search_string: "".to_string(),
+            keys,
+            filtered_keys,
+            max_depth,
+        }
+    }
+
+    // regenerate entries, keys and filtered keys when either the path or the max_depth are modified
+    pub fn update(&mut self, path: PathBuf, max_depth: usize) {
+        self.entries_map = generate_entries_map(path, max_depth);
+        self.keys = self.entries_map.keys()
+            .map(|e| e.to_string())
+            .collect();
+
+        self.keys.sort();
+
+        // if the search string isn't empty use it to filter the newly-generated entries
+        match self.search_string.is_empty() {
+            true => self.filtered_keys = Vec::new(),
+            false => self.filtered_keys = filter_entries_keys(&self.keys, &self.search_string),
+        }
+
+    }
+}
+
