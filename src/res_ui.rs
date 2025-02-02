@@ -1,6 +1,6 @@
 // TODO try to use the crossterm crate to implement a TUI
 use crate::res_data::{FileEntry, ResApp};
-use eframe::egui::{self};
+use eframe::egui;
 use egui_extras::{Column, TableBuilder};
 use egui_file_dialog::FileDialog;
 
@@ -111,7 +111,10 @@ impl eframe::App for MyApp {
                             let entry = entries[index];
 
                             row.col(|ui| {
-                                ui.label(&entry.name);
+                                let l = ui.label(&entry.name);
+                                if l.clicked() {
+                                    open_in_explorer(&entry);
+                                }
                             });
 
                             row.col(|ui| {
@@ -126,6 +129,21 @@ impl eframe::App for MyApp {
             });
         });
 
+    }
+}
+
+// using the open crate
+fn open_in_explorer(entry: &FileEntry) {
+    let full_path = match entry.extension.as_str() {
+         "" => format!("{}/{}", entry.path, entry.name),    // if the file has no extension
+        _ => format!("{}/{}.{}", entry.path, entry.name, entry.extension),
+    };
+
+    println!("opening: {}", full_path);
+
+    // uses the default OS specific opener associated with the selected file based on his format
+    if let Err(err) = open::that(&full_path) {
+        eprintln!("an error occured trying to open '{}' : {}", full_path, err);
     }
 }
 

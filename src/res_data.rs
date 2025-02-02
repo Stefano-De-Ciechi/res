@@ -15,6 +15,7 @@ impl FileEntry {
     }
 }
 
+// look at the rayon crate to try and parallelize entries discovery and addition to the hashmap
 pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> HashMap<String, Vec<FileEntry>> {
     let mut map: HashMap<String, Vec<FileEntry>> = HashMap::new();
 
