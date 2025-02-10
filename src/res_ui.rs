@@ -41,6 +41,19 @@ impl eframe::App for MyApp {
                 if self.update_entries {
                     if let Some(path) = self.file_dialog.update(ctx).selected() {
                         debug_println!("filtering on selected path: {:?}", path);
+
+                        let mut path = path.to_str().unwrap_or("");
+
+                        if path.starts_with("\\\\?\\") {
+                            let tmp_path = path.strip_prefix("\\\\?\\");
+                            path = match tmp_path {
+                                Some(p) => p,
+                                None => path,
+                            };
+                        }
+
+                        debug_println!("cleaned up path: {}", path);
+
                         self.res.path = path.into();
                         self.res.update(self.res.path.clone(), self.res.max_depth);
                         self.update_entries = false;
