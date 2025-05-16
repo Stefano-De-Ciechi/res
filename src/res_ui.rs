@@ -12,17 +12,40 @@ struct MyApp {
     res: ResApp,
     file_dialog: FileDialog,
     update_entries: bool,
+    entries: Vec<FileEntry>,
 }
 
 impl MyApp {
     fn new(res: ResApp) -> Self {
+        let entries = res.keys.iter()
+            .flat_map(|key| res.entries_map.get(key).into_iter().flat_map(|v| v.clone()))
+            .collect();
+
         Self {
             res,
             update_entries: false,
             file_dialog: FileDialog::new()
                 .initial_directory(dirs::home_dir().unwrap())
                 .show_new_folder_button(false),
+            entries,
         }
+    }
+}
+
+impl MyApp {
+    fn filter_keys(&mut self) {
+        self.entries = match self.res.search_string.is_empty() {
+            true => {
+                self.res.keys.iter()
+                    .flat_map(|key| self.res.entries_map.get(key).into_iter().flat_map(|v| v.clone()))
+                    .collect()
+            },
+            false => {
+                self.res.filtered_keys.iter()
+                    .flat_map(|key| self.res.entries_map.get(key).into_iter().flat_map(|v| v.clone()))
+                    .collect()
+            },
+        };
     }
 }
 
@@ -57,6 +80,8 @@ impl eframe::App for MyApp {
                         self.res.path = path.into();
                         self.res.update(self.res.path.clone(), self.res.max_depth);
                         self.update_entries = false;
+
+                        self.filter_keys();
                     }
                 }
                 
@@ -71,6 +96,8 @@ impl eframe::App for MyApp {
                 if _slider.changed() {
                     self.res.update(self.res.path.clone(), self.res.max_depth);
                     debug_println!("filtering on max_depth change to {}", self.res.max_depth);
+
+                    self.filter_keys();
                 }
 
             });
@@ -84,20 +111,13 @@ impl eframe::App for MyApp {
                     //self.res.filtered_keys = filter_entries_keys(&self.res.keys, &self.res.search_string);
                     self.res.filter_by_name(&self.res.search_string.clone());
                     debug_println!("filtering on regex search: {}", self.res.search_string);
+
+                    self.filter_keys();
                 }
 
             });
 
-            // TODO this gets executed every frame (kinda wasteful of resources if entries do not change between two frames)
-            let entries: Vec<&FileEntry> = match self.res.search_string.is_empty() {
-                true => {
-                    //debug_println!("inefficient code here");
-                    self.res.keys.iter().flat_map(|key| self.res.entries_map[key].iter()).collect()
-                },
-                false => self.res.filtered_keys.iter().flat_map(|key| self.res.entries_map[key].iter()).collect(),
-            };
-
-            ui.label(format!("entries n.: {}", entries.len()));
+            ui.label(format!("entries n.: {}", self.entries.len()));
 
             egui::ScrollArea::horizontal().show(ui, |ui| {
 
@@ -123,9 +143,9 @@ impl eframe::App for MyApp {
                         });
                     })
                     .body(|body| {
-                        body.rows(row_height, entries.len(), |mut row| {
+                        body.rows(row_height, self.entries.len(), |mut row| {
                             let index = row.index();
-                            let entry = entries[index];
+                            let entry = &self.entries[index];
 
                             row.col(|ui| {
                                 let l = ui.label(&entry.name);
@@ -170,7 +190,7 @@ fn open_in_explorer(entry: &FileEntry) {
 
 pub fn res_ui_init() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([1024.0, 600.0]),
         ..Default::default()
     };
 

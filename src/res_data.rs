@@ -1,8 +1,10 @@
 use regex::{Regex, RegexBuilder};
 use walkdir::WalkDir;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
+use dashmap::{DashMap, ReadOnlyView};
+use rayon::prelude::*;
 
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, Clone)]
 pub struct FileEntry {
     pub path: String,
     pub name: String,
@@ -17,69 +19,70 @@ impl FileEntry {
 }
 
 // look at the rayon crate to try and parallelize entries discovery and addition to the hashmap
-pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> HashMap<String, Vec<FileEntry>> {
-    let mut map: HashMap<String, Vec<FileEntry>> = HashMap::new();
+pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<String, Vec<FileEntry>> {
+    let map: DashMap<String, Vec<FileEntry>> = DashMap::new();
 
-    let walker = WalkDir::new(path)
+    let entries: Vec<_> = WalkDir::new(path)
         .max_depth(max_depth)  
-        .into_iter();
-
-    for entry in walker.filter_map(|e| e.ok()) {
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .collect();
+    
+    entries.par_iter().for_each(|entry| {
         let md = entry.metadata().unwrap();
 
-        if md.is_dir() {
-            continue;
-        }
+        if !md.is_dir() {
 
-        let name = entry.path()
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap();
+            let name = entry.path()
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap();
 
-        let path = entry.path()
-            .parent()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
+            let path = entry.path()
+                .parent()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string();
 
-        let ext = match entry.path()
-            .extension() {
-            Some(e) => e.to_str().unwrap().to_string(),
-            None => "".to_string(),
-        };
-        
-        let size = entry.metadata()
-            .unwrap()
-            .len();
-        
-        let size = human_readable_size(size);
+            let ext = match entry.path()
+                .extension() {
+                Some(e) => e.to_str().unwrap().to_string(),
+                None => "".to_string(),
+            };
 
-        match map.contains_key(&name.to_string()) {
-            true => {
-                let vec = map.get_mut(&name.to_string()).unwrap(); 
-                let entry = FileEntry::new(path, name.to_string(), ext, size);
+            let size = entry.metadata()
+                .unwrap()
+                .len();
 
-                vec.push(entry);
-            },
-            false => {
-                let mut vec = Vec::new();
-                let entry = FileEntry::new(path, name.to_string(), ext, size);
-                vec.push(entry);
+            let size = human_readable_size(size);
 
-                map.insert(name.to_string(), vec);
+            match map.contains_key(&name.to_string()) {
+                true => {
+                    let mut vec = map.get_mut(&name.to_string()).unwrap();
+                    let entry = FileEntry::new(path, name.to_string(), ext, size);
+
+                    vec.push(entry);
+                },
+                false => {
+                    let mut vec = Vec::new();
+                    let entry = FileEntry::new(path, name.to_string(), ext, size);
+                    vec.push(entry);
+
+                    map.insert(name.to_string(), vec);
+                }
             }
         }
 
-    }
+    });
 
-    map
+    map.into_read_only()
 }
 
 pub struct ResApp {
     pub path: PathBuf,
-    pub entries_map: HashMap<String, Vec<FileEntry>>,
+    pub entries_map: ReadOnlyView<String, Vec<FileEntry>>,
     pub search_string: String,
     pub keys: Vec<String>,
     pub filtered_keys: Vec<String>,
