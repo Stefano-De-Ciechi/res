@@ -26,7 +26,7 @@ pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<Str
     let entries: Vec<_> = WalkDir::new(path)
         .max_depth(max_depth)  
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
         .collect();
     
     entries.par_iter().for_each(|entry| {
@@ -50,7 +50,7 @@ pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<Str
             let ext = match entry.path()
                 .extension() {
                 Some(e) => e.to_str().unwrap().to_string(),
-                None => "".to_string(),
+                None => String::new(),
             };
 
             let size = entry.metadata()
@@ -59,20 +59,17 @@ pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<Str
 
             let size = human_readable_size(size);
 
-            match map.contains_key(&name.to_string()) {
-                true => {
-                    let mut vec = map.get_mut(&name.to_string()).unwrap();
-                    let entry = FileEntry::new(path, name.to_string(), ext, size);
+            if map.contains_key(&name.to_string()) {
+                let mut vec = map.get_mut(&name.to_string()).unwrap();
+                let entry = FileEntry::new(path, name.to_string(), ext, size);
 
-                    vec.push(Arc::new(entry));
-                },
-                false => {
-                    let mut vec = Vec::new();
-                    let entry = FileEntry::new(path, name.to_string(), ext, size);
-                    vec.push(Arc::new(entry));
+                vec.push(Arc::new(entry));
+            } else {
+                let mut vec = Vec::new();
+                let entry = FileEntry::new(path, name.to_string(), ext, size);
+                vec.push(Arc::new(entry));
 
-                    map.insert(name.to_string(), vec);
-                }
+                map.insert(name.to_string(), vec);
             }
         }
 
@@ -94,7 +91,7 @@ impl ResApp {
     pub fn new(path: PathBuf, max_depth: usize) -> Self {
         let entries = generate_entries_map(path.clone(), max_depth);
         let mut keys: Vec<String> = entries.keys()
-            .map(|e| e.to_string())
+            .map(ToString::to_string)
             .collect();
 
         keys.sort();
@@ -104,7 +101,7 @@ impl ResApp {
         Self {
             path,
             entries_map: entries,
-            search_string: "".to_string(),
+            search_string: String::new(),
             keys,
             filtered_keys,
             max_depth,
@@ -115,16 +112,16 @@ impl ResApp {
     pub fn update(&mut self, path: PathBuf, max_depth: usize) {
         self.entries_map = generate_entries_map(path, max_depth);
         self.keys = self.entries_map.keys()
-            .map(|e| e.to_string())
+            .map(ToString::to_string)
             .collect();
 
         self.keys.sort();
 
         // if the search string isn't empty use it to filter the newly-generated entries
-        match self.search_string.is_empty() {
-            true => self.filtered_keys = Vec::new(),
-            //true => self.filtered_keys = self.keys.clone(),
-            false => self.filter_by_name(&self.search_string.clone()),
+        if self.search_string.is_empty() {
+            self.filtered_keys = Vec::new();
+        } else {
+            self.filter_by_name(&self.search_string.clone());
         }
 
     }
@@ -140,8 +137,8 @@ impl ResApp {
 
         self.filtered_keys = self.keys.iter()
             .filter(|e| search_re.is_match(e))
-            .map(|s| s.to_string())
-            .collect()
+            .map(ToString::to_string)
+            .collect();
     }
 
 }
