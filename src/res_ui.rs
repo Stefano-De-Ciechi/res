@@ -1,3 +1,4 @@
+use std::sync::Arc;
 // TODO try to use the crossterm crate to implement a TUI
 use crate::res_data::{FileEntry, ResApp};
 use eframe::egui;
@@ -12,15 +13,21 @@ struct MyApp {
     res: ResApp,
     file_dialog: FileDialog,
     update_entries: bool,
-    entries: Vec<FileEntry>,
+    entries: Vec<Arc<FileEntry>>,
 }
 
 impl MyApp {
     fn new(res: ResApp) -> Self {
-        let entries = res.keys.iter()
+        /*let entries = res.keys.iter()
             .flat_map(|key| res.entries_map.get(key).into_iter().flat_map(|v| v.clone()))
             .collect();
-
+        */
+        let entries: Vec<Arc<FileEntry>> = res.keys.iter()
+            .flat_map(|key| res.entries_map.get(key)
+                .into_iter()
+                .flat_map(|v| v.iter().cloned()))
+            .collect();
+        
         Self {
             res,
             update_entries: false,
@@ -30,21 +37,16 @@ impl MyApp {
             entries,
         }
     }
-}
 
-impl MyApp {
     fn filter_keys(&mut self) {
-        self.entries = match self.res.search_string.is_empty() {
-            true => {
-                self.res.keys.iter()
-                    .flat_map(|key| self.res.entries_map.get(key).into_iter().flat_map(|v| v.clone()))
-                    .collect()
-            },
-            false => {
-                self.res.filtered_keys.iter()
-                    .flat_map(|key| self.res.entries_map.get(key).into_iter().flat_map(|v| v.clone()))
-                    .collect()
-            },
+        self.entries = if self.res.search_string.is_empty() {
+            self.res.keys.iter()
+                .flat_map(|key| self.res.entries_map.get(key).into_iter().flat_map(|v| v.iter().cloned()))
+                .collect()
+        } else {
+            self.res.filtered_keys.iter()
+                .flat_map(|key| self.res.entries_map.get(key).into_iter().flat_map(|v| v.iter().cloned()))
+                .collect()
         };
     }
 }
@@ -69,10 +71,7 @@ impl eframe::App for MyApp {
 
                         if path.starts_with("\\\\?\\") {
                             let tmp_path = path.strip_prefix("\\\\?\\");
-                            path = match tmp_path {
-                                Some(p) => p,
-                                None => path,
-                            };
+                            path = tmp_path.unwrap_or(path);
                         }
 
                         debug_println!("cleaned up path: {}", path);
@@ -85,15 +84,15 @@ impl eframe::App for MyApp {
                     }
                 }
                 
-                ui.heading(format!("{}", self.res.path.to_str().unwrap()));
+                ui.heading(self.res.path.to_str().unwrap().to_string());
             });
             
             ui.horizontal(|ui| {
                 ui.label("max_depth: ");
 
-                let _slider = ui.add(egui::Slider::new(&mut self.res.max_depth, 1..=10));
+                let slider = ui.add(egui::Slider::new(&mut self.res.max_depth, 1..=10));
 
-                if _slider.changed() {
+                if slider.changed() {
                     self.res.update(self.res.path.clone(), self.res.max_depth);
                     debug_println!("filtering on max_depth change to {}", self.res.max_depth);
 
@@ -105,9 +104,9 @@ impl eframe::App for MyApp {
             ui.horizontal(|ui| {
                 ui.label("filter names (with regex too): ");
 
-                let _search = ui.add(egui::TextEdit::singleline(&mut self.res.search_string));
+                let search = ui.add(egui::TextEdit::singleline(&mut self.res.search_string));
 
-                if _search.changed() {
+                if search.changed() {
                     //self.res.filtered_keys = filter_entries_keys(&self.res.keys, &self.res.search_string);
                     self.res.filter_by_name(&self.res.search_string.clone());
                     debug_println!("filtering on regex search: {}", self.res.search_string);
@@ -150,7 +149,7 @@ impl eframe::App for MyApp {
                             row.col(|ui| {
                                 let l = ui.label(&entry.name);
                                 if l.clicked() {
-                                    open_in_explorer(&entry);
+                                    open_in_explorer(entry);
                                 }
                             });
 
@@ -180,15 +179,15 @@ fn open_in_explorer(entry: &FileEntry) {
         _ => format!("{}/{}.{}", entry.path, entry.name, entry.extension),
     };
 
-    println!("opening: {}", full_path);
+    println!("opening: {full_path}");
 
     // uses the default OS specific opener associated with the selected file based on his format
     if let Err(err) = open::that(&full_path) {
-        eprintln!("an error occured trying to open '{}' : {}", full_path, err);
+        eprintln!("an error occured trying to open '{full_path}' : {err}");
     }
 }
 
-pub fn res_ui_init() -> Result<(), eframe::Error> {
+pub fn init() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1024.0, 600.0]),
         ..Default::default()

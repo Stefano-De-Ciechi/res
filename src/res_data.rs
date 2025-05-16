@@ -1,6 +1,7 @@
 use regex::{Regex, RegexBuilder};
 use walkdir::WalkDir;
 use std::path::PathBuf;
+use std::sync::Arc;
 use dashmap::{DashMap, ReadOnlyView};
 use rayon::prelude::*;
 
@@ -19,8 +20,8 @@ impl FileEntry {
 }
 
 // look at the rayon crate to try and parallelize entries discovery and addition to the hashmap
-pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<String, Vec<FileEntry>> {
-    let map: DashMap<String, Vec<FileEntry>> = DashMap::new();
+pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<String, Vec<Arc<FileEntry>>> {
+    let map: DashMap<String, Vec<Arc<FileEntry>>> = DashMap::new();
 
     let entries: Vec<_> = WalkDir::new(path)
         .max_depth(max_depth)  
@@ -63,12 +64,12 @@ pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<Str
                     let mut vec = map.get_mut(&name.to_string()).unwrap();
                     let entry = FileEntry::new(path, name.to_string(), ext, size);
 
-                    vec.push(entry);
+                    vec.push(Arc::new(entry));
                 },
                 false => {
                     let mut vec = Vec::new();
                     let entry = FileEntry::new(path, name.to_string(), ext, size);
-                    vec.push(entry);
+                    vec.push(Arc::new(entry));
 
                     map.insert(name.to_string(), vec);
                 }
@@ -82,7 +83,7 @@ pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<Str
 
 pub struct ResApp {
     pub path: PathBuf,
-    pub entries_map: ReadOnlyView<String, Vec<FileEntry>>,
+    pub entries_map: ReadOnlyView<String, Vec<Arc<FileEntry>>>,
     pub search_string: String,
     pub keys: Vec<String>,
     pub filtered_keys: Vec<String>,
@@ -133,12 +134,9 @@ impl ResApp {
     // a separate hashmap where the keys are the file extensions (it would be necessary to populate
     // that map too)
     pub fn filter_by_name(&mut self, pattern: &str) {
-        let search_re = match RegexBuilder::new(&format!(r"{}", pattern))
+        let search_re = RegexBuilder::new(pattern)
             .case_insensitive(true)
-            .build() {
-                Ok(re) => re,
-                Err(_) => Regex::new("").unwrap(),
-        };
+            .build().unwrap_or_else(|_| Regex::new("").unwrap());
 
         self.filtered_keys = self.keys.iter()
             .filter(|e| search_re.is_match(e))
