@@ -7,11 +7,12 @@ pub struct FileEntry {
     pub path: String,
     pub name: String,
     pub extension: String,
+    pub size: String,
 }
 
 impl FileEntry {
-    fn new(path: String, name: String, ext: String) -> FileEntry {
-        FileEntry { path, name, extension: ext }
+    fn new(path: String, name: String, ext: String, size: String) -> FileEntry {
+        FileEntry { path, name, extension: ext, size }
     }
 }
 
@@ -48,17 +49,23 @@ pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> HashMap<String, 
             Some(e) => e.to_str().unwrap().to_string(),
             None => "".to_string(),
         };
+        
+        let size = entry.metadata()
+            .unwrap()
+            .len();
+        
+        let size = human_readable_size(size);
 
         match map.contains_key(&name.to_string()) {
             true => {
                 let vec = map.get_mut(&name.to_string()).unwrap(); 
-                let entry = FileEntry::new(path, name.to_string(), ext);
+                let entry = FileEntry::new(path, name.to_string(), ext, size);
 
                 vec.push(entry);
             },
             false => {
                 let mut vec = Vec::new();
-                let entry = FileEntry::new(path, name.to_string(), ext);
+                let entry = FileEntry::new(path, name.to_string(), ext, size);
                 vec.push(entry);
 
                 map.insert(name.to_string(), vec);
@@ -138,3 +145,19 @@ impl ResApp {
 
 }
 
+fn human_readable_size(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "kB", "MB", "GB", "TB"];
+    let mut size = bytes as f64;
+    let mut unit = 0;
+
+    while size >= 1000.0 && unit < UNITS.len() - 1 {
+        size /= 1000.0;
+        unit += 1;
+    }
+
+    if unit == 0 {
+        format!("{} {}", size as u64, UNITS[unit])
+    } else {
+        format!("{:.2} {}", size, UNITS[unit])
+    }
+}

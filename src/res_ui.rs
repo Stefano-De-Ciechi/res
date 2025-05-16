@@ -106,6 +106,7 @@ impl eframe::App for MyApp {
                     .resizable(true)
                     .column(Column::auto())
                     .column(Column::auto())
+                    .column(Column::auto())
                     .column(Column::remainder())
                     .header(row_height, |mut header| {
                         header.col(|ui| {
@@ -113,6 +114,9 @@ impl eframe::App for MyApp {
                         });
                         header.col(|ui| {
                             ui.strong("Extension");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Size (bytes)");
                         });
                         header.col(|ui| {
                             ui.strong("Path");
@@ -132,6 +136,10 @@ impl eframe::App for MyApp {
 
                             row.col(|ui| {
                                 ui.label(&entry.extension);
+                            });
+                            
+                            row.col(|ui| {
+                                ui.label(&entry.size);
                             });
 
                             row.col(|ui| {
