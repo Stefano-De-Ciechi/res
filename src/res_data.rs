@@ -19,7 +19,6 @@ impl FileEntry {
     }
 }
 
-// look at the rayon crate to try and parallelize entries discovery and addition to the hashmap
 pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<String, Vec<Arc<FileEntry>>> {
     let map: DashMap<String, Vec<Arc<FileEntry>>> = DashMap::new();
 
@@ -28,7 +27,8 @@ pub fn generate_entries_map(path: PathBuf, max_depth: usize) -> ReadOnlyView<Str
         .into_iter()
         .filter_map(Result::ok)
         .collect();
-    
+
+    // uses rayon par_item to execute in parallel
     entries.par_iter().for_each(|entry| {
         let md = entry.metadata().unwrap();
 
@@ -121,16 +121,16 @@ impl ResApp {
         if self.search_string.is_empty() {
             self.filtered_keys = Vec::new();
         } else {
-            self.filter_by_name(&self.search_string.clone());
+            self.filter_keys_by_name(&self.search_string.clone());
         }
 
     }
 
     // TODO eventually expand to fuzzy filter by extension or relative path
-    // actually, it is not possible to do it efficiently enought right now; an alternative would be to have
+    // actually, it is not possible to do it efficiently enough right now; an alternative would be to have
     // a separate hashmap where the keys are the file extensions (it would be necessary to populate
     // that map too)
-    pub fn filter_by_name(&mut self, pattern: &str) {
+    pub fn filter_keys_by_name(&mut self, pattern: &str) {
         let search_re = RegexBuilder::new(pattern)
             .case_insensitive(true)
             .build().unwrap_or_else(|_| Regex::new("").unwrap());

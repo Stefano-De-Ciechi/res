@@ -1,6 +1,5 @@
-use std::sync::Arc;
-// TODO try to use the crossterm crate to implement a TUI
 use crate::res_data::{FileEntry, ResApp};
+use std::sync::Arc;
 use eframe::egui;
 use egui_extras::{Column, TableBuilder};
 use egui_file_dialog::FileDialog;
@@ -101,21 +100,6 @@ impl eframe::App for MyApp {
 
             });
 
-            ui.horizontal(|ui| {
-                ui.label("filter names (with regex too): ");
-
-                let search = ui.add(egui::TextEdit::singleline(&mut self.res.search_string));
-
-                if search.changed() {
-                    //self.res.filtered_keys = filter_entries_keys(&self.res.keys, &self.res.search_string);
-                    self.res.filter_by_name(&self.res.search_string.clone());
-                    debug_println!("filtering on regex search: {}", self.res.search_string);
-
-                    self.filter_keys();
-                }
-
-            });
-
             ui.label(format!("entries n.: {}", self.entries.len()));
 
             egui::ScrollArea::horizontal().show(ui, |ui| {
@@ -130,7 +114,20 @@ impl eframe::App for MyApp {
                     .header(row_height, |mut header| {
                         header.col(|ui| {
                             ui.strong("File Name");
+                            ui.horizontal(|ui| {
+                                let search = ui.add(egui::TextEdit::singleline(&mut self.res.search_string));
+
+                                if search.changed() {
+                                    //self.res.filtered_keys = filter_entries_keys(&self.res.keys, &self.res.search_string);
+                                    self.res.filter_keys_by_name(&self.res.search_string.clone());
+                                    debug_println!("filtering on regex search: {}", self.res.search_string);
+
+                                    self.filter_keys();
+                                }
+
+                            });              
                         });
+                        
                         header.col(|ui| {
                             ui.strong("Extension");
                         });
