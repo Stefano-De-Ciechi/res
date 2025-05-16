@@ -1,5 +1,6 @@
 mod res_ui;
 mod res_data;
+mod benchmark;
 
 use res_ui::res_ui_init;
 
