@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use crate::res_data::{FileEntry, ResApp};
 use std::sync::Arc;
 use eframe::egui;
@@ -66,16 +67,21 @@ impl eframe::App for MyApp {
                     if let Some(path) = self.file_dialog.update(ctx).selected() {
                         debug_println!("filtering on selected path: {:?}", path);
 
-                        let mut path = path.to_str().unwrap_or("");
+                        let mut path = path.to_str().unwrap_or("").to_string();
 
                         if path.starts_with("\\\\?\\") {
-                            let tmp_path = path.strip_prefix("\\\\?\\");
-                            path = tmp_path.unwrap_or(path);
+                            if let Some(tmp_path) = path.strip_prefix("\\\\?\\") {
+                                path = tmp_path.to_string();
+                            }
+                        }
+
+                        if path.starts_with("UNC") {
+                            path = path.replace("UNC\\", r"\\").to_string();
                         }
 
                         debug_println!("cleaned up path: {}", path);
 
-                        self.res.path = path.into();
+                        self.res.path = PathBuf::from(path);
                         self.res.update(self.res.path.clone(), self.res.max_depth);
                         self.update_entries = false;
 
@@ -190,7 +196,7 @@ pub fn init() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
-    let res = ResApp::new(dirs::home_dir().unwrap(), 3);
+    let res = ResApp::new(dirs::home_dir().unwrap(), 2);
     let app = MyApp::new(res);
 
     eframe::run_native(
